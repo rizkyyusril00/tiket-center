@@ -1,0 +1,96 @@
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TicketStatus {
+  BARU
+  DITINJAU
+  DIPROSES
+  SELESAI
+  DITUTUP
+}
+
+enum EventVisibility {
+  INTERNAL
+  REPORTER
+}
+
+model Admin {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  passwordHash String
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  ticketEvents TicketEvent[]
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tickets     Ticket[]
+
+  @@unique([sortOrder])
+}
+
+model Ticket {
+  id              String       @id @default(cuid())
+  ticketNumber    String       @unique
+  accessTokenHash String       @unique
+  reporterName    String
+  reporterEmail   String
+  subject         String
+  description     String       @db.Text
+  status          TicketStatus @default(BARU)
+  categoryId      String?
+  category        Category?    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  events           TicketEvent[]
+
+  @@index([status, createdAt])
+  @@index([reporterEmail])
+}
+
+model TicketEvent {
+  id           String          @id @default(cuid())
+  ticketId     String
+  ticket       Ticket          @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  visibility   EventVisibility @default(INTERNAL)
+  eventType    String
+  message      String?         @db.Text
+  fromStatus   TicketStatus?
+  toStatus     TicketStatus?
+  actorAdminId String?
+  actorAdmin   Admin?          @relation(fields: [actorAdminId], references: [id], onDelete: Restrict)
+  createdAt    DateTime        @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model EmailVerification {
+  id          String    @id @default(cuid())
+  name        String
+  email       String
+  subject     String
+  description String    @db.Text
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  verifiedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([email, createdAt])
+  @@index([expiresAt])
+}
